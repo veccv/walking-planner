@@ -26,27 +26,6 @@ const customIcon = L.divIcon({
   iconAnchor: [16, 32],
 });
 
-function LocationMarker() {
-  const [position, setPosition] = useState<[number, number] | null>(null);
-  const map = useMap();
-
-  useEffect(() => {
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition((location) => {
-        const { latitude, longitude } = location.coords;
-        setPosition([latitude, longitude]);
-        map.flyTo([latitude, longitude], 13);
-      });
-    }
-  }, [map]);
-
-  return position ? (
-    <Marker position={position} icon={customIcon}>
-      <Popup>Your localization</Popup>
-    </Marker>
-  ) : null;
-}
-
 function MapEvents({ onClick }: { onClick: (e: LeafletMouseEvent) => void }) {
   useMapEvents({
     click: onClick,
@@ -54,15 +33,36 @@ function MapEvents({ onClick }: { onClick: (e: LeafletMouseEvent) => void }) {
   return null;
 }
 
-interface MapProps {
+function MapCenterController({
+  center,
+  defaultLocation,
+}: {
+  center: [number, number];
   defaultLocation?: [number, number];
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    // Only set view if there's a defaultLocation
+    if (defaultLocation) {
+      map.setView(center, 25);
+    }
+  }, [center, map, defaultLocation]);
+
+  return null;
 }
 
-const Map = ({ defaultLocation }: MapProps) => {
-  const [markers, setMarkers] = useState<MarkerType[]>([]);
-  const defaultCenter: [number, number] = defaultLocation || [
-    52.237049, 21.017532,
-  ];
+interface MapProps {
+  defaultLocation?: [number, number];
+  markers: MarkerType[];
+  setMarkers: (markers: MarkerType[]) => void;
+}
+
+function MapContent({ defaultLocation, markers, setMarkers }: MapProps) {
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(
+    null,
+  );
+  const map = useMap();
 
   const handleMapClick = (e: LeafletMouseEvent) => {
     const newMarker: MarkerType = {
@@ -70,26 +70,75 @@ const Map = ({ defaultLocation }: MapProps) => {
       position: [e.latlng.lat, e.latlng.lng],
     };
     setMarkers([...markers, newMarker]);
+    setUserLocation(null);
   };
 
+  useEffect(() => {
+    if (!defaultLocation && markers.length === 0) {
+      if ("geolocation" in navigator) {
+        navigator.geolocation.getCurrentPosition((location) => {
+          const { latitude, longitude } = location.coords;
+          const newLocation: [number, number] = [latitude, longitude];
+          setUserLocation(newLocation);
+
+          map.setView(newLocation, 16, {
+            animate: false,
+          });
+
+          const newMarker: MarkerType = {
+            id: Date.now(),
+            position: newLocation,
+          };
+          setMarkers([newMarker]);
+        });
+      }
+    }
+  }, [defaultLocation, markers, setMarkers, map]);
+
   return (
-    <MapContainer
-      center={defaultCenter}
-      zoom={13}
-      style={{ height: "100vh", width: "100%" }}
-    >
-      <LocationMarker />
-      <MapEvents onClick={handleMapClick} />
+    <>
       <TileLayer
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       />
+      {userLocation && (
+        <Marker position={userLocation} icon={customIcon}>
+          <Popup>Your location</Popup>
+        </Marker>
+      )}
       {markers.map((marker) => (
         <Marker key={marker.id} position={marker.position} icon={customIcon}>
           <Popup>Walking point {marker.id}</Popup>
         </Marker>
       ))}
+      <MapEvents onClick={handleMapClick} />
+    </>
+  );
+}
+
+const Map = (props: MapProps) => {
+  const defaultCenter: [number, number] = props.defaultLocation || [
+    52.237049, 21.017532,
+  ];
+
+  return (
+    <MapContainer
+      key={
+        props.defaultLocation
+          ? `${props.defaultLocation[0]}-${props.defaultLocation[1]}`
+          : "default"
+      }
+      center={defaultCenter}
+      zoom={13}
+      style={{ height: "100vh", width: "100%" }}
+    >
+      <MapContent {...props} />
+      <MapCenterController
+        center={defaultCenter}
+        defaultLocation={props.defaultLocation} // Pass the prop here
+      />
     </MapContainer>
   );
 };
+
 export default Map;
