@@ -168,6 +168,28 @@ const Home = () => {
     }
   };
 
+  const openInGoogleMaps = (routePoints: RoutePoint[]) => {
+    if (routePoints.length === 0) return;
+
+    // Take every Nth point to create a simplified but accurate route
+    // Adjust the step (10) based on your needs
+    const simplifiedPoints = routePoints.filter((_, index) => index % 10 === 0);
+
+    const start = `${simplifiedPoints[0].lat},${simplifiedPoints[0].lon}`;
+
+    // Get waypoints (excluding start and end points)
+    const waypoints = simplifiedPoints
+      .slice(1, -1)
+      .map((point) => `${point.lat},${point.lon}`)
+      .join("|");
+
+    const end = start;
+
+    const url = `https://www.google.com/maps/dir/?api=1&origin=${start}&destination=${end}&waypoints=${waypoints}&travelmode=walking`;
+
+    window.open(url, "_blank");
+  };
+
   return (
     <Stack direction="row" h="100%" w="100%">
       <Box w="70%">
@@ -218,6 +240,14 @@ const Home = () => {
           width="full"
         >
           Clear Points
+        </Button>
+        <Button
+          onClick={() => openInGoogleMaps(routePoints)}
+          width="full"
+          colorScheme="green"
+          disabled={routePoints.length === 0}
+        >
+          Open in Google Maps
         </Button>
       </VStack>
     </Stack>
