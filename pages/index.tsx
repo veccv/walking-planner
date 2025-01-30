@@ -4,7 +4,6 @@ import { useCallback, useState } from "react";
 import SearchSelect from "@/components/ui/SearchSelect";
 import { debounce } from "lodash";
 import { toaster } from "@/components/ui/toaster";
-import { Waypoint } from "@/utils/models";
 
 interface LocationSuggestion {
   place_id: number;
@@ -68,67 +67,72 @@ const Home = () => {
     setRoutePoints([]); // Clear previous route when new location is selected
   };
 
+  const metersToDegrees = (meters: number, latitude: number): number => {
+    const earthRadius = 6378137;
+    return (
+      ((meters / earthRadius) * (180 / Math.PI)) /
+      Math.cos((latitude * Math.PI) / 180)
+    );
+  };
+
   const calculateRoute = async () => {
     if (!selectedLocation) return;
     setIsCalculating(true);
-    const [lat, lon] = selectedLocation;
-
-    const radius = walkingDuration * 0.00005;
-    const points = [];
-
-    // Creating more points for a smoother loop
-    const numberOfPoints = 8;
-
-    // First, create a slightly offset center point to make the loop more natural
-    const offsetLat = lat + radius * 0.3 * (Math.random() - 0.5);
-    const offsetLon = lon + radius * 0.3 * (Math.random() - 0.5);
-
-    // Generate points in a more circular pattern
-    for (let i = 0; i < numberOfPoints; i++) {
-      const angle = (i * Math.PI * 2) / numberOfPoints;
-      // Using sine wave variation for more natural loop shape
-      const variationFactor = 0.85 + Math.sin(angle * 2) * 0.15;
-      const newLat = offsetLat + radius * Math.cos(angle) * variationFactor;
-      const newLon = offsetLon + radius * Math.sin(angle) * variationFactor;
-      points.push(`${newLon},${newLat}`);
-    }
-
-    // Add points to create smoother transitions
-    points.push(`${lon},${lat}`);
-
     try {
+      const [lat, lon] = selectedLocation;
+      const radiusInMeters = walkingDuration * 2;
+      const radiusInDegrees = metersToDegrees(radiusInMeters, lat);
+
+      // Generate waypoints in a more strategic way for route API
+      const points = [];
+      const numberOfPoints = 4; // Using fewer points for better control
+
+      // Add starting point
+      points.push(`${lon},${lat}`);
+
+      // Add cardinal points (N, E, S, W) at radius distance
+      for (let i = 0; i < numberOfPoints; i++) {
+        const angle = (i * 2 * Math.PI) / numberOfPoints;
+        const ptLat = lat + radiusInDegrees * Math.cos(angle);
+        const ptLon = lon + radiusInDegrees * Math.sin(angle);
+        points.push(`${ptLon},${ptLat}`);
+      }
+
+      // Add starting point again to close the loop
+      points.push(`${lon},${lat}`);
+
       const response = await fetch(
-        `http://router.project-osrm.org/trip/v1/foot/${lon},${lat};${points.join(
-          ";",
-        )}?roundtrip=true&source=first&destination=last&geometries=geojson`,
+        `https://router.project-osrm.org/route/v1/foot/${points.join(";")}?overview=full&geometries=geojson&continue_straight=true`,
       );
+
       const data = await response.json();
 
-      if (data.trips && data.trips[0].geometry.coordinates) {
-        // Transform coordinates to correct format
-        const coordinates = data.trips[0].geometry.coordinates.map(
+      if (data.routes && data.routes[0].geometry) {
+        const coordinates = data.routes[0].geometry.coordinates.map(
           ([lon, lat]: number[]) => ({ lat, lon }),
         );
+
         setRoutePoints(coordinates);
 
-        // Create markers for each waypoint
-        const newMarkers = data.waypoints.map((waypoint: Waypoint) => ({
-          id: Date.now() + Math.random(),
-          position: [waypoint.location[1], waypoint.location[0]] as [
-            number,
-            number,
-          ],
-        }));
+        // Create markers at key points
+        const newMarkers: MarkerType[] = [
+          {
+            id: Date.now(),
+            position: selectedLocation,
+          },
+        ];
 
         setMarkers(newMarkers);
 
         toaster.create({
           title: "Route calculated",
-          description: "Your walking route has been generated successfully",
+          description:
+            "Your circular walking route has been generated successfully",
           duration: 3000,
         });
       }
     } catch (error) {
+      console.error("Route calculation error:", error);
       toaster.create({
         title: "Error calculating route",
         description: `Unable to calculate route: ${error}`,
