@@ -1,13 +1,20 @@
-import { Button, HStack } from "@chakra-ui/react";
+import { Button, Stack, VStack } from "@chakra-ui/react";
+import dynamic from "next/dynamic";
 
-export default function Home() {
+const MapWithNoSSR = dynamic(() => import("../components/Map"), {
+  ssr: false,
+});
+
+const Home = () => {
   return (
-    <>
-      {" "}
-      <HStack>
-        <Button>Click me</Button>
-        <Button>Click me</Button>
-      </HStack>
-    </>
+    <Stack direction="row" h="100%" w="100%">
+      <MapWithNoSSR />
+      <VStack mt={4} w="20%">
+        <Button>Calculate Walking Route</Button>
+        <Button>Clear Points</Button>
+      </VStack>
+    </Stack>
   );
-}
+};
+
+export default Home;
