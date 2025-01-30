@@ -37,7 +37,7 @@ const Home = () => {
         const data: LocationSuggestion[] = await response.json();
         setSuggestions(data);
       }
-    }, 1000),
+    }, 500),
     [],
   );
 
