@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import SearchSelect from "@/components/ui/SearchSelect";
 import { debounce } from "lodash";
 import { toaster } from "@/components/ui/toaster";
+import { Waypoint } from "@/utils/models";
 
 interface LocationSuggestion {
   place_id: number;
@@ -69,13 +70,22 @@ const Home = () => {
 
   const calculateRoute = async () => {
     if (!selectedLocation) return;
-
     setIsCalculating(true);
     const [lat, lon] = selectedLocation;
 
+    // Generate points in a circle around the selected location
+    const radius = walkingDuration * 0.02; // Rough estimate: 0.02 degrees per minute of walking
+    const points = [];
+    for (let i = 0; i < 4; i++) {
+      const angle = (i * Math.PI * 2) / 4;
+      const newLat = lat + radius * Math.cos(angle);
+      const newLon = lon + radius * Math.sin(angle);
+      points.push(`${newLon},${newLat}`);
+    }
+
     try {
       const response = await fetch(
-        `http://router.project-osrm.org/trip/v1/foot/${lon},${lat};${lon},${lat}?roundtrip=true&source=first&destination=last&geometries=geojson`,
+        `http://router.project-osrm.org/trip/v1/foot/${lon},${lat};${points.join(";")}?roundtrip=true&source=first&destination=last&geometries=geojson`,
       );
       const data = await response.json();
 
@@ -84,6 +94,17 @@ const Home = () => {
           ([lon, lat]: number[]) => ({ lat, lon }),
         );
         setRoutePoints(coordinates);
+
+        const newMarkers = data.waypoints.map((waypoint: Waypoint) => ({
+          id: Date.now() + Math.random(),
+          position: [waypoint.location[1], waypoint.location[0]] as [
+            number,
+            number,
+          ],
+        }));
+
+        setMarkers(newMarkers);
+
         toaster.create({
           title: "Route calculated",
           description: "Your walking route has been generated successfully",
