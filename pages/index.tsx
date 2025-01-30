@@ -47,7 +47,7 @@ const Home = () => {
         const data: LocationSuggestion[] = await response.json();
         setSuggestions(data);
       }
-    }, 500),
+    }, 200),
     [],
   );
 
@@ -73,19 +73,28 @@ const Home = () => {
     setIsCalculating(true);
     const [lat, lon] = selectedLocation;
 
-    const radius = walkingDuration * 0.00006;
+    const radius = walkingDuration * 0.00005;
     const points = [];
 
-    // Using 5 points for an intimate walking route
-    const numberOfPoints = 5;
+    // Creating more points for a smoother loop
+    const numberOfPoints = 8;
+
+    // First, create a slightly offset center point to make the loop more natural
+    const offsetLat = lat + radius * 0.3 * (Math.random() - 0.5);
+    const offsetLon = lon + radius * 0.3 * (Math.random() - 0.5);
+
+    // Generate points in a more circular pattern
     for (let i = 0; i < numberOfPoints; i++) {
       const angle = (i * Math.PI * 2) / numberOfPoints;
-      // Tighter random variation (0.85-1.0) for more predictable distances
-      const randomFactor = 0.85 + Math.random() * 0.15;
-      const newLat = lat + radius * Math.cos(angle) * randomFactor;
-      const newLon = lon + radius * Math.sin(angle) * randomFactor;
+      // Using sine wave variation for more natural loop shape
+      const variationFactor = 0.85 + Math.sin(angle * 2) * 0.15;
+      const newLat = offsetLat + radius * Math.cos(angle) * variationFactor;
+      const newLon = offsetLon + radius * Math.sin(angle) * variationFactor;
       points.push(`${newLon},${newLat}`);
     }
+
+    // Add points to create smoother transitions
+    points.push(`${lon},${lat}`);
 
     try {
       const response = await fetch(
