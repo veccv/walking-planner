@@ -73,28 +73,36 @@ const Home = () => {
     setIsCalculating(true);
     const [lat, lon] = selectedLocation;
 
-    // Generate points in a circle around the selected location
-    const radius = walkingDuration * 0.02; // Rough estimate: 0.02 degrees per minute of walking
+    const radius = walkingDuration * 0.00006;
     const points = [];
-    for (let i = 0; i < 4; i++) {
-      const angle = (i * Math.PI * 2) / 4;
-      const newLat = lat + radius * Math.cos(angle);
-      const newLon = lon + radius * Math.sin(angle);
+
+    // Using 5 points for an intimate walking route
+    const numberOfPoints = 5;
+    for (let i = 0; i < numberOfPoints; i++) {
+      const angle = (i * Math.PI * 2) / numberOfPoints;
+      // Tighter random variation (0.85-1.0) for more predictable distances
+      const randomFactor = 0.85 + Math.random() * 0.15;
+      const newLat = lat + radius * Math.cos(angle) * randomFactor;
+      const newLon = lon + radius * Math.sin(angle) * randomFactor;
       points.push(`${newLon},${newLat}`);
     }
 
     try {
       const response = await fetch(
-        `http://router.project-osrm.org/trip/v1/foot/${lon},${lat};${points.join(";")}?roundtrip=true&source=first&destination=last&geometries=geojson`,
+        `http://router.project-osrm.org/trip/v1/foot/${lon},${lat};${points.join(
+          ";",
+        )}?roundtrip=true&source=first&destination=last&geometries=geojson`,
       );
       const data = await response.json();
 
       if (data.trips && data.trips[0].geometry.coordinates) {
+        // Transform coordinates to correct format
         const coordinates = data.trips[0].geometry.coordinates.map(
           ([lon, lat]: number[]) => ({ lat, lon }),
         );
         setRoutePoints(coordinates);
 
+        // Create markers for each waypoint
         const newMarkers = data.waypoints.map((waypoint: Waypoint) => ({
           id: Date.now() + Math.random(),
           position: [waypoint.location[1], waypoint.location[0]] as [
