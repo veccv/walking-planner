@@ -80,21 +80,26 @@ const Home = () => {
     setIsCalculating(true);
     try {
       const [lat, lon] = selectedLocation;
-      const radiusInMeters = walkingDuration * 2;
+      const radiusInMeters = walkingDuration * 5;
       const radiusInDegrees = metersToDegrees(radiusInMeters, lat);
 
-      // Generate waypoints in a more strategic way for route API
+      // Generate waypoints with randomization
       const points = [];
-      const numberOfPoints = 4; // Using fewer points for better control
+      const numberOfPoints = 5;
 
       // Add starting point
       points.push(`${lon},${lat}`);
 
-      // Add cardinal points (N, E, S, W) at radius distance
+      // Add randomized points around the circle
       for (let i = 0; i < numberOfPoints; i++) {
         const angle = (i * 2 * Math.PI) / numberOfPoints;
-        const ptLat = lat + radiusInDegrees * Math.cos(angle);
-        const ptLon = lon + radiusInDegrees * Math.sin(angle);
+        // Add random variation to radius (80-120% of original)
+        const randomRadius = radiusInDegrees * (0.8 + Math.random() * 0.4);
+        // Add random variation to angle (±15 degrees)
+        const randomAngle = angle + ((Math.random() - 0.5) * Math.PI) / 6;
+
+        const ptLat = lat + randomRadius * Math.cos(randomAngle);
+        const ptLon = lon + randomRadius * Math.sin(randomAngle);
         points.push(`${ptLon},${ptLat}`);
       }
 
@@ -114,12 +119,20 @@ const Home = () => {
 
         setRoutePoints(coordinates);
 
-        // Create markers at key points
         const newMarkers: MarkerType[] = [
+          // Starting point marker
           {
             id: Date.now(),
             position: selectedLocation,
           },
+          // Waypoint markers with explicit tuple typing
+          ...points.slice(1, -1).map((point, index) => {
+            const [pLon, pLat] = point.split(",").map(Number);
+            return {
+              id: Date.now() + index + 1,
+              position: [pLat, pLon] as [number, number], // Explicitly type as tuple
+            };
+          }),
         ];
 
         setMarkers(newMarkers);
