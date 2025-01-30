@@ -76,21 +76,35 @@ function MapContent({ defaultLocation, markers, setMarkers }: MapProps) {
   useEffect(() => {
     if (!defaultLocation && markers.length === 0) {
       if ("geolocation" in navigator) {
-        navigator.geolocation.getCurrentPosition((location) => {
-          const { latitude, longitude } = location.coords;
-          const newLocation: [number, number] = [latitude, longitude];
-          setUserLocation(newLocation);
+        const options = {
+          enableHighAccuracy: true,
+          timeout: 5000,
+          maximumAge: 0,
+        };
 
-          map.setView(newLocation, 16, {
-            animate: false,
-          });
+        navigator.geolocation.getCurrentPosition(
+          (location) => {
+            const { latitude, longitude } = location.coords;
+            const newLocation: [number, number] = [latitude, longitude];
+            setUserLocation(newLocation);
 
-          const newMarker: MarkerType = {
-            id: Date.now(),
-            position: newLocation,
-          };
-          setMarkers([newMarker]);
-        });
+            map.setView(newLocation, 16, {
+              animate: false,
+            });
+
+            const newMarker: MarkerType = {
+              id: Date.now(),
+              position: newLocation,
+            };
+            setMarkers([newMarker]);
+          },
+          (error) => {
+            console.log("Geolocation error:", error);
+            const defaultPos: [number, number] = [52.237049, 21.017532];
+            map.setView(defaultPos, 13);
+          },
+          options,
+        );
       }
     }
   }, [defaultLocation, markers, setMarkers, map]);
