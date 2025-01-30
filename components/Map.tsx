@@ -1,6 +1,7 @@
 import {
   MapContainer,
   Marker,
+  Polyline,
   Popup,
   TileLayer,
   useMap,
@@ -15,6 +16,11 @@ import "leaflet/dist/leaflet.css";
 interface MarkerType {
   id: number;
   position: [number, number];
+}
+
+interface RoutePoint {
+  lat: number;
+  lon: number;
 }
 
 const customIcon = L.divIcon({
@@ -43,7 +49,6 @@ function MapCenterController({
   const map = useMap();
 
   useEffect(() => {
-    // Only set view if there's a defaultLocation
     if (defaultLocation) {
       map.setView(center, 25);
     }
@@ -56,9 +61,15 @@ interface MapProps {
   defaultLocation?: [number, number];
   markers: MarkerType[];
   setMarkers: (markers: MarkerType[]) => void;
+  routePoints?: RoutePoint[];
 }
 
-function MapContent({ defaultLocation, markers, setMarkers }: MapProps) {
+function MapContent({
+  defaultLocation,
+  markers,
+  setMarkers,
+  routePoints,
+}: MapProps) {
   const [userLocation, setUserLocation] = useState<[number, number] | null>(
     null,
   );
@@ -125,6 +136,14 @@ function MapContent({ defaultLocation, markers, setMarkers }: MapProps) {
           <Popup>Walking point {marker.id}</Popup>
         </Marker>
       ))}
+      {routePoints && routePoints.length > 0 && (
+        <Polyline
+          positions={routePoints.map((point) => [point.lat, point.lon])}
+          color="blue"
+          weight={3}
+          opacity={0.7}
+        />
+      )}
       <MapEvents onClick={handleMapClick} />
     </>
   );
@@ -149,7 +168,7 @@ const Map = (props: MapProps) => {
       <MapContent {...props} />
       <MapCenterController
         center={defaultCenter}
-        defaultLocation={props.defaultLocation} // Pass the prop here
+        defaultLocation={props.defaultLocation}
       />
     </MapContainer>
   );
